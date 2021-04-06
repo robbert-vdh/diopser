@@ -252,6 +252,8 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
         for (size_t filter_idx = 0; filter_idx < filters.size(); filter_idx++) {
             for (size_t channel = 0; channel < input_channels; channel++) {
+                // TODO: We should add a dry-wet control, could be useful for
+                //       automation
                 samples[channel][sample_idx] =
                     filters[filter_idx][channel].processSample(
                         samples[channel][sample_idx]);
