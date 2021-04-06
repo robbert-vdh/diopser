@@ -137,6 +137,7 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     filters.resize(static_cast<size_t>(filter_stages));
     for (auto& filter : filters) {
         filter.prepare(current_spec);
+        filter.setType(juce::dsp::FirstOrderTPTFilterType::allpass);
     }
 
     smoothed_filter_frequency.reset(sampleRate, 0.1);
@@ -185,6 +186,7 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     filters.resize(static_cast<size_t>(filter_stages));
     for (size_t i = old_num_filters; i < filters.size(); i++) {
         filters[i].prepare(current_spec);
+        filters[i].setType(juce::dsp::FirstOrderTPTFilterType::allpass);
     }
 
     smoothed_filter_frequency.setTargetValue(filter_frequency);
