@@ -9,9 +9,21 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(-fcolor-diagnostics)
 endif()
 
-# Fetch JUCE and other dependencies
+# Fetch JUCE and other dependencies. For non-JUCE dependencies we'll check
+# whether the package is available locally with pkgconfig before trying to
+# download and build it ourselves.
 include(cmake/CPM.cmake)
 CPMAddPackage("gh:juce-framework/JUCE#6.0.8")
+
+find_package(PkgConfig)
+if(PkgConfig_FOUND)
+  pkg_search_module(function2 IMPORTED_TARGET function2)
+endif()
+
+if(NOT function2_FOUND)
+  message(STATUS "function2 not found using pkgconfig, downloading from GitHub")
+  CPMAddPackage("gh:Naios/function2#4.1.0")
+endif()
 
 # We only expose a single VST3 plugin
 juce_add_plugin(Diopser
@@ -58,4 +70,5 @@ target_link_libraries(Diopser
 
   PRIVATE
     juce::juce_audio_utils
-    juce::juce_dsp)
+    juce::juce_dsp
+    function2)
