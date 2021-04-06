@@ -77,17 +77,24 @@ class DiopserProcessor : public juce::AudioProcessor {
 
    private:
     /**
+     * Add, remove, and initialize the all-pass filters based on the
+     * `filter_stages` parameter.
+     */
+    void init_filters();
+
+    /**
      * The current processing spec. Needed when adding more filters when the
      * number of stages changes.
      */
     juce::dsp::ProcessSpec current_spec;
 
     /**
-     * Our all-pass filters. The number of filters and the frequency of the
-     * filters is controlled using the `filter_stages` and `filter_frequency`
-     * parameters.
+     * Our all-pass filters. The vector is indexed by
+     * `[filter_idx][channel_idx]`. The number of filters and the frequency of
+     * the filters is controlled using the `filter_stages` and
+     * `filter_frequency` parameters.
      */
-    std::vector<juce::dsp::FirstOrderTPTFilter<float>> filters;
+    std::vector<std::vector<juce::dsp::IIR::Filter<float>>> filters;
 
     juce::AudioProcessorValueTreeState parameters;
 

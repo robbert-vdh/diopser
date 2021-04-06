@@ -151,11 +151,9 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
         .maximumBlockSize = static_cast<uint32>(maximumExpectedSamplesPerBlock),
         .numChannels = static_cast<uint32>(getMainBusNumInputChannels())};
 
-    filters.resize(static_cast<size_t>(filter_stages));
-    for (auto& filter : filters) {
-        filter.prepare(current_spec);
-        filter.setType(juce::dsp::FirstOrderTPTFilterType::allpass);
-    }
+    // At this point `filters` should already be empty, but who knows
+    filters.clear();
+    init_filters();
 
     smoothed_filter_frequency.reset(sampleRate, 0.1);
 }
@@ -203,39 +201,33 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     // as a proof of concept
     // FIXME: We should be doing this lockfree from another thread using two
     //        vectors of filters
-    const size_t old_num_filters = filters.size();
-    filters.resize(static_cast<size_t>(filter_stages));
-    for (size_t i = old_num_filters; i < filters.size(); i++) {
-        filters[i].prepare(current_spec);
-        filters[i].setType(juce::dsp::FirstOrderTPTFilterType::allpass);
-    }
+    init_filters();
 
     smoothed_filter_frequency.setTargetValue(filter_frequency);
-    for (size_t sample = 0; sample < num_samples; sample++) {
-        const bool should_update_filter =
-            smoothed_filter_frequency.getCurrentValue() != filter_frequency;
+    for (size_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
         const float current_filter_frequency =
             smoothed_filter_frequency.getNextValue();
+        // TODO: Make the resonance configurable
+        const auto updated_coefficients =
+            juce::dsp::IIR::Coefficients<float>::makeAllPass(
+                getSampleRate(), current_filter_frequency, 0.5);
 
-        for (auto& filter : filters) {
-            // This is quite an expensive operation when you have hundreds of
-            // filters, so we should only do this when it's necessary
+        for (size_t filter_idx = 0; filter_idx < filters.size(); filter_idx++) {
             // TODO: These smoothed parameter changes sound cool and all, but it
             //       becomes super expensive to do this for every sample. We
-            //       should probably:
-            //       1) Modify the filter class so we can directly modify `G`,
-            //          so we only need to compute the updated coefficient once,
-            //          and
-            //       2) Only update once every n (16?) samples, since that will
-            //          probably sound just as smooth while while having
-            //          considerably less overhead
-            if (should_update_filter) [[unlikely]] {
-                filter.setCutoffFrequency(current_filter_frequency);
+            //       should probably only change the coefficients every N steps
+            //       (making sure to keep the smoothing countdown into account)
+            if (smoothed_filter_frequency.isSmoothing()) [[unlikely]] {
+                for (size_t channel = 0; channel < input_channels; channel++) {
+                    filters[filter_idx][channel].coefficients =
+                        updated_coefficients;
+                }
             }
 
             for (size_t channel = 0; channel < input_channels; channel++) {
-                samples[channel][sample] =
-                    filter.processSample(channel, samples[channel][sample]);
+                samples[channel][sample_idx] =
+                    filters[filter_idx][channel].processSample(
+                        samples[channel][sample_idx]);
             }
         }
     }
@@ -261,6 +253,29 @@ void DiopserProcessor::setStateInformation(const void* data, int sizeInBytes) {
     const auto xml = getXmlFromBinary(data, sizeInBytes);
     if (xml && xml->hasTagName(parameters.state.getType())) {
         parameters.replaceState(juce::ValueTree::fromXml(*xml));
+    }
+}
+
+void DiopserProcessor::init_filters() {
+    const size_t old_num_filters = filters.size();
+    filters.resize(static_cast<size_t>(filter_stages));
+
+    // We initialize the filter with the filter coefficients so we can just
+    // change these coefficients inside of the processing loop
+    // TODO: Make the resonance configurable
+    // TODO: We're using IIR filters isntead of the TPT filters now. Check if
+    //       these always sound better, and maybe add an option to switch
+    //       between filter types.
+    const auto filter_coefficients =
+        juce::dsp::IIR::Coefficients<float>::makeAllPass(getSampleRate(),
+                                                         filter_frequency, 0.5);
+    for (size_t i = old_num_filters; i < filters.size(); i++) {
+        filters[i].resize(static_cast<size_t>(
+            juce::dsp::IIR::Filter<float>(filter_coefficients),
+            getMainBusNumOutputChannels()));
+        for (auto& filter : filters[i]) {
+            filter.prepare(current_spec);
+        }
     }
 }
 
