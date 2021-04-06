@@ -47,6 +47,10 @@ DiopserProcessor::DiopserProcessor()
                   filter_settings_group_name,
                   "Filters",
                   " | ",
+                  // TODO: Make this parameter non-automateable. JUCE doesn't
+                  //       seem to let you set this without creating your own
+                  //       parameter class, but we can just create a simple
+                  //       template class wrapper.
                   std::make_unique<juce::AudioParameterInt>(
                       filter_stages_param_name,
                       "Filter Stages",
