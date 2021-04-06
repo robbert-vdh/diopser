@@ -207,9 +207,10 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         const float current_filter_frequency =
             smoothed_filter_frequency.getNextValue();
 
-        for (size_t channel = 0; channel < input_channels; channel++) {
-            for (auto& filter : filters) {
-                filter.setCutoffFrequency(current_filter_frequency);
+        for (auto& filter : filters) {
+            filter.setCutoffFrequency(current_filter_frequency);
+
+            for (size_t channel = 0; channel < input_channels; channel++) {
                 samples[channel][sample] =
                     filter.processSample(channel, samples[channel][sample]);
             }
