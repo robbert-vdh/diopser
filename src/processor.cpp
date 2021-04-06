@@ -204,11 +204,17 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     smoothed_filter_frequency.setTargetValue(filter_frequency);
     for (size_t sample = 0; sample < num_samples; sample++) {
+        const bool should_update_filter =
+            smoothed_filter_frequency.getCurrentValue() != filter_frequency;
         const float current_filter_frequency =
             smoothed_filter_frequency.getNextValue();
 
         for (auto& filter : filters) {
-            filter.setCutoffFrequency(current_filter_frequency);
+            // This is quite an expensive operation when you have hundreds of
+            // filters, so we should only do this when it's necessary
+            if (should_update_filter) [[unlikely]] {
+                filter.setCutoffFrequency(current_filter_frequency);
+            }
 
             for (size_t channel = 0; channel < input_channels; channel++) {
                 samples[channel][sample] =
