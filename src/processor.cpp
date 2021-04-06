@@ -210,7 +210,7 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 }
 
 bool DiopserProcessor::hasEditor() const {
-    return true;
+    return false;
 }
 
 juce::AudioProcessorEditor* DiopserProcessor::createEditor() {
