@@ -51,7 +51,7 @@ DiopserProcessor::DiopserProcessor()
                       filter_stages_param_name,
                       "Filter Stages",
                       0,
-                      256,
+                      512,
                       0),
                   std::make_unique<juce::AudioParameterFloat>(
                       filter_frequency_param_name,
