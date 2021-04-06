@@ -212,6 +212,15 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         for (auto& filter : filters) {
             // This is quite an expensive operation when you have hundreds of
             // filters, so we should only do this when it's necessary
+            // TODO: These smoothed parameter changes sound cool and all, but it
+            //       becomes super expensive to do this for every sample. We
+            //       should probably:
+            //       1) Modify the filter class so we can directly modify `G`,
+            //          so we only need to compute the updated coefficient once,
+            //          and
+            //       2) Only update once every n (16?) samples, since that will
+            //          probably sound just as smooth while while having
+            //          considerably less overhead
             if (should_update_filter) [[unlikely]] {
                 filter.setCutoffFrequency(current_filter_frequency);
             }
