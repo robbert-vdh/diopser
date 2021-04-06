@@ -63,6 +63,14 @@ DiopserProcessor::DiopserProcessor()
                       [](float value, int /*max_length*/) -> juce::String {
                           return juce::String(value, 0);
                       })),
+              std::make_unique<juce::AudioParameterBool>(
+                  "please_ignore",
+                  "Don't touch this",
+                  true,
+                  "",
+                  [](float value, int /*max_length*/) -> juce::String {
+                      return (value > 0.0) ? "please don't" : "stop it";
+                  }),
           }),
       // TODO: Is this how you're supposed to retrieve non-float parameters?
       //       Seems a bit excessive
