@@ -60,7 +60,7 @@ DiopserProcessor::DiopserProcessor()
                   std::make_unique<juce::AudioParameterFloat>(
                       filter_frequency_param_name,
                       "Filter Frequency",
-                      juce::NormalisableRange<float>(0.0, 20000.0, 1.0, 0.2),
+                      juce::NormalisableRange<float>(5.0, 20000.0, 1.0, 0.2),
                       20.0,
                       " Hz",
                       juce::AudioProcessorParameter::genericParameter,
