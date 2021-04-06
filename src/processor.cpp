@@ -75,7 +75,7 @@ DiopserProcessor::DiopserProcessor()
                   std::make_unique<juce::AudioParameterFloat>(
                       filter_resonance_param_name,
                       "Filter Resonance",
-                      juce::NormalisableRange<float>(0.5, 100.0, 0.1, 0.2),
+                      juce::NormalisableRange<float>(0.01, 30.0, 0.01, 0.2),
                       0.5)),
               std::make_unique<juce::AudioParameterBool>(
                   "please_ignore",
