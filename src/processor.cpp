@@ -38,27 +38,32 @@ DiopserProcessor::DiopserProcessor()
           BusesProperties()
               .withInput("Input", juce::AudioChannelSet::stereo(), true)
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      parameters(*this,
-                 nullptr,
-                 "parameters",
-                 {
-                     std::make_unique<juce::AudioProcessorParameterGroup>(
-                         filter_settings_group_name,
-                         "Filters",
-                         " | ",
-                         std::make_unique<juce::AudioParameterInt>(
-                             filter_stages_param_name,
-                             "Filter Stages",
-                             0,
-                             32,
-                             0),
-                         std::make_unique<juce::AudioParameterFloat>(
-                             filter_frequency_param_name,
-                             "Filter Frequency",
-                             juce::NormalisableRange<float>(20.0, 20'000.0),
-                             1000.0,
-                             " Hz")),
-                 }),
+      parameters(
+          *this,
+          nullptr,
+          "parameters",
+          {
+              std::make_unique<juce::AudioProcessorParameterGroup>(
+                  filter_settings_group_name,
+                  "Filters",
+                  " | ",
+                  std::make_unique<juce::AudioParameterInt>(
+                      filter_stages_param_name,
+                      "Filter Stages",
+                      0,
+                      256,
+                      0),
+                  std::make_unique<juce::AudioParameterFloat>(
+                      filter_frequency_param_name,
+                      "Filter Frequency",
+                      juce::NormalisableRange<float>(0.0, 10000.0),
+                      20.0,
+                      " Hz",
+                      juce::AudioProcessorParameter::genericParameter,
+                      [](float value, int /*max_length*/) -> juce::String {
+                          return juce::String(value, 1);
+                      })),
+          }),
       // TODO: Is this how you're supposed to retrieve non-float parameters?
       //       Seems a bit excessive
       filter_stages(*dynamic_cast<juce::AudioParameterInt*>(
