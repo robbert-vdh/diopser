@@ -61,7 +61,7 @@ DiopserProcessor::DiopserProcessor()
                       " Hz",
                       juce::AudioProcessorParameter::genericParameter,
                       [](float value, int /*max_length*/) -> juce::String {
-                          return juce::String(value, 0);
+                          return juce::String(value, 0) + " Hz";
                       })),
               std::make_unique<juce::AudioParameterBool>(
                   "please_ignore",
