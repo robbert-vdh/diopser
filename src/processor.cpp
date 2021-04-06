@@ -25,6 +25,13 @@ constexpr char filter_stages_param_name[] = "filter_stages";
 constexpr char filter_frequency_param_name[] = "filter_freq";
 constexpr char filter_resonance_param_name[] = "filter_res";
 
+/**
+ * When the filter cutoff or resonance parameters change, we'll interpolate
+ * between the old and the new values over the course of this time span to
+ * prevent clicks.
+ */
+constexpr float filter_smoothing_secs = 0.1;
+
 LambdaParameterListener::LambdaParameterListener(
     fu2::unique_function<void(const juce::String&, float)> callback)
     : callback(std::move(callback)) {}
@@ -172,8 +179,9 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     filters.clear();
     init_filters();
 
-    smoothed_filter_frequency.reset(sampleRate, 0.1);
-    smoothed_filter_resonance.reset(sampleRate, 0.1);
+    // The filter parameter will be smoothed to prevent clicks during automation
+    smoothed_filter_frequency.reset(sampleRate, filter_smoothing_secs);
+    smoothed_filter_resonance.reset(sampleRate, filter_smoothing_secs);
 }
 
 void DiopserProcessor::releaseResources() {
