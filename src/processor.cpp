@@ -184,6 +184,10 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     juce::AudioBuffer<float> main_buffer = getBusBuffer(buffer, true, 0);
     juce::ScopedNoDenormals noDenormals;
 
+    // TODO: Is there a way to get the VST3 silence flags? Carla, and perhaps
+    //        also some other hosts, enable a lot more channels than the user is
+    //        likely going to use, so we'll end up wasting a ton of resources on
+    //        processing silcence.
     float** samples = buffer.getArrayOfWritePointers();
     const size_t input_channels =
         static_cast<size_t>(getMainBusNumInputChannels());
