@@ -100,7 +100,9 @@ class DiopserProcessor : public juce::AudioProcessor {
 
     juce::AudioParameterInt& filter_stages;
     std::atomic<float>& filter_frequency;
+    std::atomic<float>& filter_resonance;
     juce::SmoothedValue<float> smoothed_filter_frequency;
+    juce::SmoothedValue<float> smoothed_filter_resonance;
 
     /**
      * Will add or remove filters when the number of filter stages changes.

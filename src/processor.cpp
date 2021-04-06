@@ -23,6 +23,7 @@ using juce::uint32;
 constexpr char filter_settings_group_name[] = "filters";
 constexpr char filter_stages_param_name[] = "filter_stages";
 constexpr char filter_frequency_param_name[] = "filter_freq";
+constexpr char filter_resonance_param_name[] = "filter_res";
 
 LambdaParameterListener::LambdaParameterListener(
     fu2::unique_function<void(const juce::String&, float)> callback)
@@ -69,7 +70,13 @@ DiopserProcessor::DiopserProcessor()
                       juce::AudioProcessorParameter::genericParameter,
                       [](float value, int /*max_length*/) -> juce::String {
                           return juce::String(value, 0) + " Hz";
-                      })),
+                      }),
+                  // TODO: Perhaps display this range as something nicer
+                  std::make_unique<juce::AudioParameterFloat>(
+                      filter_resonance_param_name,
+                      "Filter Resonance",
+                      juce::NormalisableRange<float>(0.5, 100.0, 0.1, 0.2),
+                      0.5)),
               std::make_unique<juce::AudioParameterBool>(
                   "please_ignore",
                   "Don't touch this",
@@ -85,6 +92,8 @@ DiopserProcessor::DiopserProcessor()
           parameters.getParameter(filter_stages_param_name))),
       filter_frequency(
           *parameters.getRawParameterValue(filter_frequency_param_name)),
+      filter_resonance(
+          *parameters.getRawParameterValue(filter_resonance_param_name)),
       filter_stages_listener(
           [&](const juce::String& /*parameterID*/, float /*newValue*/) {
               // FIXME: We should do a lockfree resize of the filters vector
@@ -159,6 +168,7 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     init_filters();
 
     smoothed_filter_frequency.reset(sampleRate, 0.1);
+    smoothed_filter_resonance.reset(sampleRate, 0.1);
 }
 
 void DiopserProcessor::releaseResources() {
@@ -207,20 +217,26 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     init_filters();
 
     smoothed_filter_frequency.setTargetValue(filter_frequency);
+    smoothed_filter_resonance.setTargetValue(filter_resonance);
     for (size_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
         const float current_filter_frequency =
             smoothed_filter_frequency.getNextValue();
-        // TODO: Make the resonance configurable
+        const float current_filter_resonance =
+            smoothed_filter_resonance.getNextValue();
+        const bool should_update_filters =
+            smoothed_filter_frequency.isSmoothing() ||
+            smoothed_filter_resonance.isSmoothing();
         const auto updated_coefficients =
             juce::dsp::IIR::Coefficients<float>::makeAllPass(
-                getSampleRate(), current_filter_frequency, 0.5);
+                getSampleRate(), current_filter_frequency,
+                current_filter_resonance);
 
         for (size_t filter_idx = 0; filter_idx < filters.size(); filter_idx++) {
             // TODO: These smoothed parameter changes sound cool and all, but it
             //       becomes super expensive to do this for every sample. We
             //       should probably only change the coefficients every N steps
             //       (making sure to keep the smoothing countdown into account)
-            if (smoothed_filter_frequency.isSmoothing()) [[unlikely]] {
+            if (should_update_filters) [[unlikely]] {
                 for (size_t channel = 0; channel < input_channels; channel++) {
                     filters[filter_idx][channel].coefficients =
                         updated_coefficients;
@@ -265,13 +281,12 @@ void DiopserProcessor::init_filters() {
 
     // We initialize the filter with the filter coefficients so we can just
     // change these coefficients inside of the processing loop
-    // TODO: Make the resonance configurable
     // TODO: We're using IIR filters isntead of the TPT filters now. Check if
     //       these always sound better, and maybe add an option to switch
     //       between filter types.
     const auto filter_coefficients =
-        juce::dsp::IIR::Coefficients<float>::makeAllPass(getSampleRate(),
-                                                         filter_frequency, 0.5);
+        juce::dsp::IIR::Coefficients<float>::makeAllPass(
+            getSampleRate(), filter_frequency, filter_resonance);
     for (size_t i = old_num_filters; i < filters.size(); i++) {
         filters[i].resize(static_cast<size_t>(
             juce::dsp::IIR::Filter<float>(filter_coefficients),
