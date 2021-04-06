@@ -288,11 +288,12 @@ void DiopserProcessor::init_filters() {
         juce::dsp::IIR::Coefficients<float>::makeAllPass(
             getSampleRate(), filter_frequency, filter_resonance);
     for (size_t i = old_num_filters; i < filters.size(); i++) {
-        filters[i].resize(static_cast<size_t>(
-            juce::dsp::IIR::Filter<float>(filter_coefficients),
-            getMainBusNumOutputChannels()));
+        filters[i].resize(static_cast<size_t>(getMainBusNumOutputChannels()));
         for (auto& filter : filters[i]) {
             filter.prepare(current_spec);
+
+            filter.coefficients = filter_coefficients;
+            filter.reset();
         }
     }
 }
