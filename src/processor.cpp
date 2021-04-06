@@ -61,7 +61,7 @@ DiopserProcessor::DiopserProcessor()
                       " Hz",
                       juce::AudioProcessorParameter::genericParameter,
                       [](float value, int /*max_length*/) -> juce::String {
-                          return juce::String(value, 1);
+                          return juce::String(value, 0);
                       })),
           }),
       // TODO: Is this how you're supposed to retrieve non-float parameters?
