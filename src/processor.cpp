@@ -65,7 +65,7 @@ DiopserProcessor::DiopserProcessor()
                       filter_frequency_param_name,
                       "Filter Frequency",
                       juce::NormalisableRange<float>(5.0, 20000.0, 1.0, 0.2),
-                      20.0,
+                      200.0,
                       " Hz",
                       juce::AudioProcessorParameter::genericParameter,
                       [](float value, int /*max_length*/) -> juce::String {
