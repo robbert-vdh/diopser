@@ -95,6 +95,12 @@ class DiopserProcessor : public juce::AudioProcessor {
      * `filter_frequency` parameters.
      */
     std::vector<std::vector<juce::dsp::IIR::Filter<float>>> filters;
+    /**
+     * All filters will use these same filter coefficients, so we can just
+     * update the coefficients for all filters in one place. This especially
+     * makes automation a lot more cache friendly.
+     */
+    juce::dsp::IIR::Filter<float>::CoefficientsPtr filter_coefficients;
 
     juce::AudioProcessorValueTreeState parameters;
 
