@@ -59,6 +59,10 @@ DiopserProcessor::DiopserProcessor()
                   //       seem to let you set this without creating your own
                   //       parameter class, but we can just create a simple
                   //       template class wrapper.
+                  // TODO: Some combinations of parameters can cause really loud
+                  //       resonance. We should limit the resonance and filter
+                  //       stages parameter ranges in the GUI until the user
+                  //       unlocks.
                   std::make_unique<juce::AudioParameterInt>(
                       filter_stages_param_name,
                       "Filter Stages",
@@ -68,6 +72,9 @@ DiopserProcessor::DiopserProcessor()
                   // TODO: This frequency is slightly off form disperser. Check
                   //       which one is correct with respect to resonance
                   //       frequency.
+                  // TODO: Figure out some way to get rid of the resonances when
+                  //       sweep the frequency down when using a large number of
+                  //       stages
                   std::make_unique<juce::AudioParameterFloat>(
                       filter_frequency_param_name,
                       "Filter Frequency",
