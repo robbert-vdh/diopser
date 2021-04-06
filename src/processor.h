@@ -18,6 +18,26 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <function2/function2.hpp>
+
+/**
+ * Run some function whenever a parameter changes. This function will be
+ * executed synchronously and should thus run in constant time.
+ */
+class LambdaParameterListener
+    : public juce::AudioProcessorValueTreeState::Listener {
+   public:
+    LambdaParameterListener(
+        fu2::unique_function<void(const juce::String&, float)> callback);
+
+    void parameterChanged(const juce::String& parameterID,
+                          float newValue) override;
+
+   private:
+    fu2::unique_function<void(const juce::String&, float)> callback;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LambdaParameterListener)
+};
 
 class DiopserProcessor : public juce::AudioProcessor {
    public:
@@ -56,10 +76,29 @@ class DiopserProcessor : public juce::AudioProcessor {
     void setStateInformation(const void* data, int sizeInBytes) override;
 
    private:
+    /**
+     * The current processing spec. Needed when adding more filters when the
+     * number of stages changes.
+     */
+    juce::dsp::ProcessSpec current_spec;
+
+    /**
+     * Our all-pass filters. The number of filters and the frequency of the
+     * filters is controlled using the `filter_stages` and `filter_frequency`
+     * parameters.
+     */
+    std::vector<juce::dsp::FirstOrderTPTFilter<float>> filters;
+
     juce::AudioProcessorValueTreeState parameters;
 
     juce::AudioParameterInt& filter_stages;
     std::atomic<float>& filter_frequency;
+    juce::SmoothedValue<float> smoothed_filter_frequency;
+
+    /**
+     * Will add or remove filters when the number of filter stages changes.
+     */
+    LambdaParameterListener filter_stages_listener;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DiopserProcessor)
 };

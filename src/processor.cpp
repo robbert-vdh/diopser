@@ -18,13 +18,20 @@
 
 #include "editor.h"
 
-#include <span>
-
 using juce::uint32;
 
 constexpr char filter_settings_group_name[] = "filters";
 constexpr char filter_stages_param_name[] = "filter_stages";
 constexpr char filter_frequency_param_name[] = "filter_freq";
+
+LambdaParameterListener::LambdaParameterListener(
+    fu2::unique_function<void(const juce::String&, float)> callback)
+    : callback(std::move(callback)) {}
+
+void LambdaParameterListener::parameterChanged(const juce::String& parameterID,
+                                               float newValue) {
+    callback(parameterID, newValue);
+}
 
 DiopserProcessor::DiopserProcessor()
     : AudioProcessor(
@@ -57,7 +64,15 @@ DiopserProcessor::DiopserProcessor()
       filter_stages(*dynamic_cast<juce::AudioParameterInt*>(
           parameters.getParameter(filter_stages_param_name))),
       filter_frequency(
-          *parameters.getRawParameterValue(filter_frequency_param_name)) {}
+          *parameters.getRawParameterValue(filter_frequency_param_name)),
+      filter_stages_listener(
+          [&](const juce::String& /*parameterID*/, float /*newValue*/) {
+              // FIXME: We should do a lockfree resize of the filters vector
+              //        here instead of doing allocations in `processBlock()`
+          }) {
+    parameters.addParameterListener(filter_stages_param_name,
+                                    &filter_stages_listener);
+}
 
 DiopserProcessor::~DiopserProcessor() {}
 
@@ -112,12 +127,24 @@ const juce::String DiopserProcessor::getProgramName(int /*index*/) {
 void DiopserProcessor::changeProgramName(int /*index*/,
                                          const juce::String& /*newName*/) {}
 
-void DiopserProcessor::prepareToPlay(double /*sampleRate*/,
+void DiopserProcessor::prepareToPlay(double sampleRate,
                                      int maximumExpectedSamplesPerBlock) {
-    // TODO: Initialize filters
+    current_spec = juce::dsp::ProcessSpec{
+        .sampleRate = sampleRate,
+        .maximumBlockSize = static_cast<uint32>(maximumExpectedSamplesPerBlock),
+        .numChannels = static_cast<uint32>(getMainBusNumInputChannels())};
+
+    filters.resize(static_cast<size_t>(filter_stages));
+    for (auto& filter : filters) {
+        filter.prepare(current_spec);
+    }
+
+    smoothed_filter_frequency.reset(sampleRate, 0.1);
 }
 
-void DiopserProcessor::releaseResources() {}
+void DiopserProcessor::releaseResources() {
+    filters.clear();
+}
 
 bool DiopserProcessor::isBusesLayoutSupported(
     const BusesLayout& layouts) const {
@@ -129,7 +156,7 @@ bool DiopserProcessor::isBusesLayoutSupported(
 }
 
 void DiopserProcessor::processBlockBypassed(
-    juce::AudioBuffer<float>& buffer,
+    juce::AudioBuffer<float>& /*buffer*/,
     juce::MidiBuffer& /*midiMessages*/) {
     // TODO: The default should be fine if we don't introduce any latency
 }
@@ -139,6 +166,7 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     juce::AudioBuffer<float> main_buffer = getBusBuffer(buffer, true, 0);
     juce::ScopedNoDenormals noDenormals;
 
+    float** samples = buffer.getArrayOfWritePointers();
     const size_t input_channels =
         static_cast<size_t>(getMainBusNumInputChannels());
     const size_t output_channels =
@@ -149,7 +177,29 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         buffer.clear(channel, 0.0f, num_samples);
     }
 
-    // TODO: Process everything through the all-pass filters
+    // We'll temporarily update the number of filters here from the audio thread
+    // as a proof of concept
+    // FIXME: We should be doing this lockfree from another thread using two
+    //        vectors of filters
+    const size_t old_num_filters = filters.size();
+    filters.resize(static_cast<size_t>(filter_stages));
+    for (size_t i = old_num_filters; i < filters.size(); i++) {
+        filters[i].prepare(current_spec);
+    }
+
+    smoothed_filter_frequency.setTargetValue(filter_frequency);
+    for (size_t sample = 0; sample < num_samples; sample++) {
+        const float current_filter_frequency =
+            smoothed_filter_frequency.getNextValue();
+
+        for (size_t channel = 0; channel < input_channels; channel++) {
+            for (auto& filter : filters) {
+                filter.setCutoffFrequency(current_filter_frequency);
+                samples[channel][sample] =
+                    filter.processSample(channel, samples[channel][sample]);
+            }
+        }
+    }
 }
 
 bool DiopserProcessor::hasEditor() const {
