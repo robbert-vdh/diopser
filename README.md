@@ -1,9 +1,10 @@
 # Diopser
 
-You were expecting Disperser[¹](#disperser) but it was me, Diopser!
+You were expecting Disperser[¹](#disperser), but it was me, Diopser!
 
 <sup id="disperser">
-  *Disperser is a trademark of Kilohearts AB, Diopser is in no way related to Disperser or Kilohearts.
+  *Disperser is a trademark of Kilohearts AB. Diopser is in no way related to
+  Disperser or Kilohearts AB.
 </sup>
 
 ## Building
