@@ -57,6 +57,9 @@ DiopserProcessor::DiopserProcessor()
                       0,
                       512,
                       0),
+                  // TODO: This frequency is slightly off form disperser. Check
+                  //       which one is correct with respect to resonance
+                  //       frequency.
                   std::make_unique<juce::AudioParameterFloat>(
                       filter_frequency_param_name,
                       "Filter Frequency",
