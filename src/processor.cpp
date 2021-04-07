@@ -32,6 +32,14 @@ constexpr char filter_resonance_param_name[] = "filter_res";
  */
 constexpr float filter_smoothing_secs = 0.1;
 
+/**
+ * The default filter resonance. This value should minimize the amount of
+ * resonances. In the GUI we should also be snapping to this value.
+ *
+ * This is equal to `sqrt(2) / 2`, but `std::sqrt` isn't constexpr.
+ */
+constexpr float default_filter_resonance = 0.7071067811865476;
+
 LambdaParameterListener::LambdaParameterListener(
     fu2::unique_function<void(const juce::String&, float)> callback)
     : callback(std::move(callback)) {}
@@ -90,7 +98,7 @@ DiopserProcessor::DiopserProcessor()
                       filter_resonance_param_name,
                       "Filter Resonance",
                       juce::NormalisableRange<float>(0.01, 30.0, 0.01, 0.2),
-                      0.5)),
+                      default_filter_resonance)),
               std::make_unique<juce::AudioParameterBool>(
                   "please_ignore",
                   "Don't touch this",
