@@ -24,7 +24,7 @@ and a recent C++ compiler.
 
 ```shell
 cmake -Bbuild -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+cmake --build build --parallel --config Release
 ```
 
 You'll find the compiled plugin in `build/Diopser_artefacts/Release/VST3`.

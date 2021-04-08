@@ -60,3 +60,29 @@ jobs:
         with:
           name: ${{ env.ARCHIVE_NAME }}
           path: ${{ env.ARCHIVE_NAME }}
+
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+    outputs:
+      artifact-name: ${{ env.ARCHIVE_NAME }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Fetch all git history
+        run: git fetch --force --prune --tags --unshallow
+      - name: Determine build archive name
+        run: |
+          echo "ARCHIVE_NAME=diopser-$(git describe --always)-windows" >> "$GITHUB_ENV"
+      - name: Build the binaries
+        run: |
+          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DFORCE_STATIC_LINKING=1
+          # This doesn't work together with --parallel for some reason
+          cmake --build build --config Release
+      - name: Create an archive for the binaries
+        run: |
+          mkdir "$ARCHIVE_NAME"
+          cp -r build/Diopser_artefacts/Release/VST3/Diopser.vst3 "$ARCHIVE_NAME"
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.ARCHIVE_NAME }}
+          path: ${{ env.ARCHIVE_NAME }}
