@@ -16,6 +16,13 @@
 
 #include "utils.h"
 
+LambdaAsyncUpdater::LambdaAsyncUpdater(fu2::unique_function<void()> callback)
+    : callback(std::move(callback)) {}
+
+void LambdaAsyncUpdater::handleAsyncUpdate() {
+    callback();
+}
+
 LambdaParameterListener::LambdaParameterListener(
     fu2::unique_function<void(const juce::String&, float)> callback)
     : callback(std::move(callback)) {}

@@ -20,6 +20,22 @@
 #include <function2/function2.hpp>
 
 /**
+ * Run some function on the message thread. This function will be executed
+ * synchronously and should thus run in constant time.
+ */
+class LambdaAsyncUpdater : public juce::AsyncUpdater {
+   public:
+    LambdaAsyncUpdater(fu2::unique_function<void()> callback);
+
+    void handleAsyncUpdate() override;
+
+   private:
+    fu2::unique_function<void()> callback;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LambdaAsyncUpdater)
+};
+
+/**
  * Run some function whenever a parameter changes. This function will be
  * executed synchronously and should thus run in constant time.
  */
