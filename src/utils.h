@@ -107,8 +107,10 @@ class AtomicallySwappable {
      * Modify the inactive object using the supplied function, and swap the
      * active and the inactive objects on the next call to `get()`. This may
      * block and should thus never be called from the audio thread.
+     *
+     * @tparam F A function with the signature `void(T&)`.
      */
-    template <std::invocable<T&> F>
+    template <typename F>
     void modify_and_swap(F modify_fn) {
         // In case two mutations are performed in a row, we don't want the audio
         // thread swapping the objects while we're modifying that same object
@@ -131,8 +133,10 @@ class AtomicallySwappable {
      * Resize both objects down to their smallest size using the supplied
      * function. This should only ever be called from
      * `AudioProcessor::releaseResources()`.
+     *
+     * @tparam F A function with the signature `void(T&)`.
      */
-    template <std::invocable<T&> F>
+    template <typename F>
     void clear(F clear_fn) {
         std::lock_guard lock(resize_mutex);
 
