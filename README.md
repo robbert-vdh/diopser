@@ -20,12 +20,12 @@ a peak limiter after the plugin in case loud resonances start building up.
 
 ## Download
 
-There's no tagged release yet, but you can download binaries for Linux, Windows
-and macOS from the [automated
+You can download the latest development binaries for Linux, Windows and macOS
+from the [automated
 builds](https://github.com/robbert-vdh/diopser/actions?query=workflow%3A%22Automated+builds%22+branch%3Amaster)
-page. GitHub requires you to be signed in order to be able to download these
-files. I sadly cannot provide any support for Windows and macOS, but the plugins
-should work!
+page. GitHub requires you to be signed in to be able to download these files. I
+sadly cannot provide any support for the Windows and macOS versions at the
+moment, but the plugins should work!
 
 ## Building
 
