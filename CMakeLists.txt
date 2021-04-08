@@ -45,7 +45,6 @@ endif()
 # Plugins
 #
 
-# We only expose a single VST3 plugin
 juce_add_plugin(Diopser
   PRODUCT_NAME "Diopser"
   COMPANY_NAME "Robbert van der Helm"

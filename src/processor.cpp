@@ -107,7 +107,7 @@ DiopserProcessor::DiopserProcessor()
           *parameters.getRawParameterValue(filter_frequency_param_name)),
       filter_resonance(
           *parameters.getRawParameterValue(filter_resonance_param_name)),
-      filter_stages_updater([&]() { update_and_swap_filters(filter_stages); }),
+      filter_stages_updater([&]() { update_and_swap_filters(); }),
       filter_stages_listener(
           [&](const juce::String& /*parameter_id*/, float /*new_value*/) {
               // Resize our filter vector from a background thread
@@ -185,7 +185,7 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     // After initializing the filters we make an explicit call to
     // `filters.get()` to swap the two filters in case we get a parameter change
     // before the first processing cycle
-    update_and_swap_filters(filter_stages);
+    update_and_swap_filters();
     filters.get();
 
     // The filter parameter will be smoothed to prevent clicks during automation
@@ -295,9 +295,9 @@ void DiopserProcessor::setStateInformation(const void* data, int sizeInBytes) {
     }
 }
 
-void DiopserProcessor::update_and_swap_filters(int num_stages) {
-    filters.modify_and_swap([this, num_stages](Filters& filters) {
-        filters.resize(static_cast<size_t>(num_stages));
+void DiopserProcessor::update_and_swap_filters() {
+    filters.modify_and_swap([this](Filters& filters) {
+        filters.resize(static_cast<size_t>(filter_stages));
 
         // We initialize the filter with the filter coefficients so we can
         // just change these coefficients inside of the processing loop

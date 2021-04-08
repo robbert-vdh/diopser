@@ -61,12 +61,12 @@ class DiopserProcessor : public juce::AudioProcessor {
     using Filters = std::vector<std::vector<juce::dsp::IIR::Filter<float>>>;
 
     /**
-     * Reinitialize `filters` with `num_stages` filters on the next audio
+     * Reinitialize `filters` with `filter_stages` filters on the next audio
      * processing cycle. The inactive object we're modifying will be swapped
      * with the active object on the next call to `filters.get()`. This should
      * not be called from the audio thread.
      */
-    void update_and_swap_filters(int num_stages);
+    void update_and_swap_filters();
 
     /**
      * The current processing spec. Needed when adding more filters when the
