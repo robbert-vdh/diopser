@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 
+# TODO: Figure out a clean way to allow maintainers to disable all static
+#       linking and downloading
+option(FORCE_STATIC_LINKING "Statically link all dependencies, for distribution" OFF)
+
 project(diopser VERSION 0.0.1 LANGUAGES CXX)
 
 # CMake for some reason doesn't enable diagnostic colors by default
@@ -61,9 +65,11 @@ target_compile_features(Diopser PUBLIC cxx_std_20)
 set_target_properties(Diopser PROPERTIES CXX_EXTENSIONS OFF)
 
 if(FORCE_STATIC_LINKING)
-  # TODO: Do something similar for macOS and Linux, since we're using some C++20
-  #       features
+  # TODO: Should we also do something similar on macOS?
   set_target_properties(Diopser PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(Diopser PRIVATE -static-libstdc++)
+  endif()
 endif()
 
 target_link_libraries(Diopser
