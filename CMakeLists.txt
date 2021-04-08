@@ -47,7 +47,8 @@ juce_add_plugin(Diopser
 
 target_sources(Diopser PRIVATE
   src/editor.cpp
-  src/processor.cpp)
+  src/processor.cpp
+  src/utils.cpp)
 
 target_compile_definitions(Diopser PUBLIC
   JUCE_WEB_BROWSER=0

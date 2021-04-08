@@ -40,15 +40,6 @@ constexpr float filter_smoothing_secs = 0.1;
  */
 constexpr float default_filter_resonance = 0.7071067811865476;
 
-LambdaParameterListener::LambdaParameterListener(
-    fu2::unique_function<void(const juce::String&, float)> callback)
-    : callback(std::move(callback)) {}
-
-void LambdaParameterListener::parameterChanged(const juce::String& parameterID,
-                                               float newValue) {
-    callback(parameterID, newValue);
-}
-
 DiopserProcessor::DiopserProcessor()
     : AudioProcessor(
           BusesProperties()
