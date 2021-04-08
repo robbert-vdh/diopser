@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 
+project(diopser VERSION 0.0.1 LANGUAGES CXX)
+
 # TODO: Figure out a clean way to allow maintainers to disable all static
 #       linking and downloading
 option(FORCE_STATIC_LINKING "Statically link all dependencies, for distribution" OFF)
-
-project(diopser VERSION 0.0.1 LANGUAGES CXX)
 
 # CMake for some reason doesn't enable diagnostic colors by default
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -12,6 +12,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(-fcolor-diagnostics)
 endif()
+
+# Statically link the STL on Windows for the CI builds
+if(FORCE_STATIC_LINKING AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+#
+# Dependencies
+#
 
 # Fetch JUCE and other dependencies. For non-JUCE dependencies we'll check
 # whether the package is available locally with pkgconfig before trying to
@@ -31,6 +40,10 @@ if(NOT function2_FOUND)
   message(STATUS "function2 not found using pkgconfig, downloading from GitHub")
   CPMAddPackage("gh:Naios/function2#4.1.0")
 endif()
+
+#
+# Plugins
+#
 
 # We only expose a single VST3 plugin
 juce_add_plugin(Diopser
@@ -64,12 +77,10 @@ target_compile_definitions(Diopser PUBLIC
 target_compile_features(Diopser PUBLIC cxx_std_20)
 set_target_properties(Diopser PROPERTIES CXX_EXTENSIONS OFF)
 
-if(FORCE_STATIC_LINKING)
-  # TODO: Should we also do something similar on macOS?
-  set_target_properties(Diopser PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(Diopser PRIVATE -static-libstdc++)
-  endif()
+# Statically link the STL on Linux for the CI builds
+# TODO: Should we also do something similar on macOS?
+if(FORCE_STATIC_LINKING AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(Diopser PRIVATE -static-libstdc++)
 endif()
 
 target_link_libraries(Diopser
