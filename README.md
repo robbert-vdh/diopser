@@ -1,5 +1,7 @@
 # Diopser
 
+[![Automated builds](https://github.com/robbert-vdh/diopser/workflows/Automated%20builds/badge.svg?branch=master&event=push)](https://github.com/robbert-vdh/diopser/actions?query=workflow%3A%22Automated+builds%22+branch%3Amaster)
+
 You were expecting Disperser[¹](#disperser), but it was me, Diopser!
 
 Diopser lets you rotate the phase of a signal around a specific frequency
@@ -15,6 +17,15 @@ a peak limiter after the plugin in case loud resonances start building up.
   *Disperser is a trademark of Kilohearts AB. Diopser is in no way related to
   Disperser or Kilohearts AB.
 </sup>
+
+## Download
+
+There's no tagged release yet, but you can download binaries for Linux, Windows
+and macOS from the [automated
+builds](https://github.com/robbert-vdh/diopser/actions?query=workflow%3A%22Automated+builds%22+branch%3Amaster)
+page. GitHub requires you to be signed in order to be able to download these
+files. I sadly cannot provide any support for Windows and macOS, but the plugins
+should work!
 
 ## Building
 
