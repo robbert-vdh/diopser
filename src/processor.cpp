@@ -107,10 +107,11 @@ DiopserProcessor::DiopserProcessor()
           *parameters.getRawParameterValue(filter_frequency_param_name)),
       filter_resonance(
           *parameters.getRawParameterValue(filter_resonance_param_name)),
+      filter_stages_updater([&]() { update_and_swap_filters(filter_stages); }),
       filter_stages_listener(
-          [&](const juce::String& /*parameterID*/, float /*newValue*/) {
-              // FIXME: We should do a lockfree resize of the filters vector
-              //        here instead of doing allocations in `processBlock()`
+          [&](const juce::String& /*parameter_id*/, float /*new_value*/) {
+              // Resize our filter vector from a background thread
+              filter_stages_updater.triggerAsyncUpdate();
           }) {
     parameters.addParameterListener(filter_stages_param_name,
                                     &filter_stages_listener);
@@ -181,9 +182,11 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     filter_coefficients = juce::dsp::IIR::Coefficients<float>::makeAllPass(
         getSampleRate(), filter_frequency, filter_resonance);
 
-    // At this point `filters` should already be empty, but who knows
-    filters.clear();
-    init_filters();
+    // After initializing the filters we make an explicit call to
+    // `filters.get()` to swap the two filters in case we get a parameter change
+    // before the first processing cycle
+    update_and_swap_filters(filter_stages);
+    filters.get();
 
     // The filter parameter will be smoothed to prevent clicks during automation
     smoothed_filter_frequency.reset(sampleRate, filter_smoothing_secs);
@@ -191,7 +194,10 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
 }
 
 void DiopserProcessor::releaseResources() {
-    filters.clear();
+    filters.clear([](Filters& filters) {
+        filters.clear();
+        filters.shrink_to_fit();
+    });
 }
 
 bool DiopserProcessor::isBusesLayoutSupported(
@@ -229,11 +235,9 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         buffer.clear(channel, 0.0f, num_samples);
     }
 
-    // We'll temporarily update the number of filters here from the audio thread
-    // as a proof of concept
-    // FIXME: We should be doing this lockfree from another thread using two
-    //        vectors of filters
-    init_filters();
+    // Our filter structure gets updated from a background thread whenever the
+    // `filter_stages` parameter changes
+    Filters& filters = this->filters.get();
 
     smoothed_filter_frequency.setTargetValue(filter_frequency);
     smoothed_filter_resonance.setTargetValue(filter_resonance);
@@ -256,12 +260,12 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     current_filter_resonance);
         }
 
-        for (size_t filter_idx = 0; filter_idx < filters.size(); filter_idx++) {
+        for (auto& channel_filters : filters) {
             for (size_t channel = 0; channel < input_channels; channel++) {
                 // TODO: We should add a dry-wet control, could be useful for
                 //       automation
                 samples[channel][sample_idx] =
-                    filters[filter_idx][channel].processSample(
+                    channel_filters[channel].processSample(
                         samples[channel][sample_idx]);
             }
         }
@@ -291,24 +295,26 @@ void DiopserProcessor::setStateInformation(const void* data, int sizeInBytes) {
     }
 }
 
-void DiopserProcessor::init_filters() {
-    const size_t old_num_filters = filters.size();
-    filters.resize(static_cast<size_t>(filter_stages));
+void DiopserProcessor::update_and_swap_filters(int num_stages) {
+    filters.modify_and_swap([this, num_stages](Filters& filters) {
+        filters.resize(static_cast<size_t>(num_stages));
 
-    // We initialize the filter with the filter coefficients so we can just
-    // change these coefficients inside of the processing loop
-    // TODO: We're using IIR filters isntead of the TPT filters now. Check if
-    //       these always sound better, and maybe add an option to switch
-    //       between filter types.
-    for (size_t i = old_num_filters; i < filters.size(); i++) {
-        filters[i].resize(static_cast<size_t>(getMainBusNumOutputChannels()));
-        for (auto& filter : filters[i]) {
-            filter.prepare(current_spec);
+        // We initialize the filter with the filter coefficients so we can
+        // just change these coefficients inside of the processing loop
+        // TODO: We're using IIR filters isntead of the TPT filters now.  Check
+        //       if these always sound better, and maybe add an option to switch
+        //       between filter types.
+        for (auto& channel_filters : filters) {
+            channel_filters.resize(
+                static_cast<size_t>(getMainBusNumOutputChannels()));
+            for (auto& filter : channel_filters) {
+                filter.prepare(current_spec);
 
-            filter.coefficients = filter_coefficients;
-            filter.reset();
+                filter.coefficients = filter_coefficients;
+                filter.reset();
+            }
         }
-    }
+    });
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {

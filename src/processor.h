@@ -58,11 +58,15 @@ class DiopserProcessor : public juce::AudioProcessor {
     void setStateInformation(const void* data, int sizeInBytes) override;
 
    private:
+    using Filters = std::vector<std::vector<juce::dsp::IIR::Filter<float>>>;
+
     /**
-     * Add, remove, and initialize the all-pass filters based on the
-     * `filter_stages` parameter.
+     * Reinitialize `filters` with `num_stages` filters on the next audio
+     * processing cycle. The inactive object we're modifying will be swapped
+     * with the active object on the next call to `filters.get()`. This should
+     * not be called from the audio thread.
      */
-    void init_filters();
+    void update_and_swap_filters(int num_stages);
 
     /**
      * The current processing spec. Needed when adding more filters when the
@@ -76,7 +80,7 @@ class DiopserProcessor : public juce::AudioProcessor {
      * the filters is controlled using the `filter_stages` and
      * `filter_frequency` parameters.
      */
-    std::vector<std::vector<juce::dsp::IIR::Filter<float>>> filters;
+    AtomicallySwappable<Filters> filters;
     /**
      * All filters will use these same filter coefficients, so we can just
      * update the coefficients for all filters in one place. This especially
@@ -95,6 +99,7 @@ class DiopserProcessor : public juce::AudioProcessor {
     /**
      * Will add or remove filters when the number of filter stages changes.
      */
+    LambdaAsyncUpdater filter_stages_updater;
     LambdaParameterListener filter_stages_listener;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DiopserProcessor)
