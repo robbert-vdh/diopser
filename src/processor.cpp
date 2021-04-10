@@ -55,10 +55,6 @@ DiopserProcessor::DiopserProcessor()
                   filter_settings_group_name,
                   "Filters",
                   " | ",
-                  // TODO: Make this parameter non-automateable. JUCE doesn't
-                  //       seem to let you set this without creating your own
-                  //       parameter class, but we can just create a simple
-                  //       template class wrapper.
                   // TODO: Some combinations of parameters can cause really loud
                   //       resonance. We should limit the resonance and filter
                   //       stages parameter ranges in the GUI until the user
