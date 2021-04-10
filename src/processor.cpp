@@ -36,9 +36,10 @@ constexpr float filter_smoothing_secs = 0.1;
  * The default filter resonance. This value should minimize the amount of
  * resonances. In the GUI we should also be snapping to this value.
  *
- * This is equal to `sqrt(2) / 2`, but `std::sqrt` isn't constexpr.
+ * The actual default neutral Q-value would be `sqrt(2) / 2`, but this value
+ * produces slightly less ringing.
  */
-constexpr float default_filter_resonance = 0.7071067811865476;
+constexpr float default_filter_resonance = 0.5;
 
 DiopserProcessor::DiopserProcessor()
     : AudioProcessor(
