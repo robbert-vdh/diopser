@@ -13,9 +13,10 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   add_compile_options(-fcolor-diagnostics)
 endif()
 
-# Statically link the STL on Windows for the CI builds
+# Statically link the STL on Windows for the CI builds, and target a lower macOS version
 if(FORCE_STATIC_LINKING)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
 endif()
 
 #
@@ -77,7 +78,6 @@ target_compile_features(Diopser PUBLIC cxx_std_20)
 set_target_properties(Diopser PROPERTIES CXX_EXTENSIONS OFF)
 
 # Statically link the STL on Linux for the CI builds
-# TODO: Should we also do something similar on macOS?
 if(FORCE_STATIC_LINKING AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(Diopser PRIVATE -static-libstdc++)
 endif()

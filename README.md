@@ -24,9 +24,8 @@ You can download the latest development binaries for Linux, Windows and macOS
 from the [automated
 builds](https://github.com/robbert-vdh/diopser/actions?query=workflow%3A%22Automated+builds%22+branch%3Amaster)
 page. GitHub requires you to be signed in to be able to download these files.
-The macOS builds are compiled on macOS 10.15 Catalina and likely won't run on
-anything before that. You may also have to [disable
-Gatekeeper](https://disable-gatekeeper.github.io/) depending on your DAW as
+The macOS builds are compiled for macOS 10.13. You may also have to [disable
+Gatekeeper](https://disable-gatekeeper.github.io/) to use the VST3 version as
 Apple has recently made it more difficult to run unsigned code on macOS. I sadly
 cannot provide any support for the Windows and macOS versions at the moment, but
 the plugins should work!
