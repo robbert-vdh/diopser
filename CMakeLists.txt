@@ -14,7 +14,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 # Statically link the STL on Windows for the CI builds
-if(FORCE_STATIC_LINKING AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(FORCE_STATIC_LINKING)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
