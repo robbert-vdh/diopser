@@ -70,7 +70,7 @@ class AtomicallySwappable {
     /**
      * Default initalizes the objects.
      */
-    AtomicallySwappable<T>()
+    AtomicallySwappable()
         : active(&primary), inactive(&secondary), primary(), secondary() {}
 
     /**
@@ -79,7 +79,7 @@ class AtomicallySwappable {
      * @param initial The initial value for the object. This will also be copied
      *   to the inactive slot.
      */
-    AtomicallySwappable<T>(T initial)
+    AtomicallySwappable(T initial)
         : active(&primary),
           inactive(&secondary),
           primary(initial),
