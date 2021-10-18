@@ -132,6 +132,12 @@ class DiopserProcessor : public juce::AudioProcessor {
      */
     std::atomic<float>& filter_spread;
     juce::SmoothedValue<float> smoothed_filter_spread;
+    /**
+     * The spread can either be logarithmic or linear. The logarithmic version
+     * usually sounds more natural, but surely more options is better, right?
+     */
+    juce::AudioParameterBool& filter_spread_linear;
+    bool old_filter_spread_linear;
 
     /**
      * Will add or remove filters when the number of filter stages changes.

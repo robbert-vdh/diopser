@@ -25,6 +25,7 @@ constexpr char filter_stages_param_name[] = "filter_stages";
 constexpr char filter_frequency_param_name[] = "filter_freq";
 constexpr char filter_resonance_param_name[] = "filter_res";
 constexpr char filter_spread_param_name[] = "filter_spread";
+constexpr char filter_spread_linear_param_name[] = "filter_spread_linear";
 
 /**
  * When the filter cutoff or resonance parameters change, we'll interpolate
@@ -100,6 +101,18 @@ DiopserProcessor::DiopserProcessor()
                       juce::AudioProcessorParameter::genericParameter,
                       [](float value, int /*max_length*/) -> juce::String {
                           return juce::String(value, 0);
+                      }),
+                  std::make_unique<juce::AudioParameterBool>(
+                      filter_spread_linear_param_name,
+                      "Filter spread style",
+                      false,
+                      "",
+                      [](float value, int /*max_length*/) -> juce::String {
+                          return (value >= 0.5) ? "linear" : "logarithmic";
+                      },
+                      [](const juce::String& text) -> bool {
+                          const auto& lower_case = text.toLowerCase();
+                          return lower_case == "linear" || lower_case == "true";
                       })),
               std::make_unique<juce::AudioParameterBool>(
                   "please_ignore",
@@ -119,6 +132,8 @@ DiopserProcessor::DiopserProcessor()
       filter_resonance(
           *parameters.getRawParameterValue(filter_resonance_param_name)),
       filter_spread(*parameters.getRawParameterValue(filter_spread_param_name)),
+      filter_spread_linear(*dynamic_cast<juce::AudioParameterBool*>(
+          parameters.getParameter(filter_spread_linear_param_name))),
       filter_stages_updater([&]() { update_and_swap_filters(); }),
       filter_stages_listener(
           [&](const juce::String& /*parameter_id*/, float /*new_value*/) {
@@ -257,7 +272,8 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             !filters.is_initialized ||
             smoothed_filter_frequency.isSmoothing() ||
             smoothed_filter_resonance.isSmoothing() ||
-            smoothed_filter_spread.isSmoothing();
+            smoothed_filter_spread.isSmoothing() ||
+            (filter_spread_linear != old_filter_spread_linear);
         const float current_filter_frequency =
             smoothed_filter_frequency.getNextValue();
         const float current_filter_resonance =
@@ -277,24 +293,31 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                         current_filter_resonance);
             }
 
-            // The filter spread will be logarithmic because that sounds a bit
-            // more natural. We also need to make sure the spread range stays in
-            // the normal ranges to prevent the filters from crapping out. This
-            // does cause the range to shift slightly with high spread values
-            // and low or high frequency values. Ideally we would want to
-            // prevent this in the GUI.
+            // The filter spread can be either linear or logarithmic. The
+            // logarithmic version is the default because it sounds a bit more
+            // natural. We also need to make sure the spread range stays in the
+            // normal ranges to prevent the filters from crapping out. This does
+            // cause the range to shift slightly with high spread values and low
+            // or high frequency values. Ideally we would want to prevent this
+            // in the GUI.
             // TODO: When adding a GUI, prevent spread values that would cause
             //       the frequency range to be shifted
             const float below_nyquist_frequency =
                 static_cast<float>(getSampleRate()) / 2.1f;
-            const float min_filter_frequency_log = std::log(std::clamp(
+            const float min_filter_frequency = std::clamp(
                 current_filter_frequency - (current_filter_spread / 2.0f), 5.0f,
-                below_nyquist_frequency));
-            const float max_filter_frequency_log = std::log(std::clamp(
+                below_nyquist_frequency);
+            const float max_filter_frequency = std::clamp(
                 current_filter_frequency + (current_filter_spread / 2.0f), 5.0f,
-                below_nyquist_frequency));
+                below_nyquist_frequency);
+            const float filter_frequency_delta =
+                max_filter_frequency - min_filter_frequency;
+            const float log_min_filter_frequency =
+                std::log(min_filter_frequency);
+            const float log_max_filter_frequency =
+                std::log(max_filter_frequency);
             const float log_filter_frequency_delta =
-                max_filter_frequency_log - min_filter_frequency_log;
+                log_max_filter_frequency - log_min_filter_frequency;
 
             const size_t num_stages = filters.stages.size();
             for (size_t stage_idx = 0; stage_idx < num_stages; stage_idx++) {
@@ -313,9 +336,13 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     *stage.coefficients =
                         juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
                             getSampleRate(),
-                            std::exp(min_filter_frequency_log +
-                                     (log_filter_frequency_delta *
-                                      frequency_offset_factor)),
+                            filter_spread_linear
+                                ? (min_filter_frequency +
+                                   (filter_frequency_delta *
+                                    frequency_offset_factor))
+                                : std::exp(log_min_filter_frequency +
+                                           (log_filter_frequency_delta *
+                                            frequency_offset_factor)),
                             current_filter_resonance);
                 }
 
@@ -329,6 +356,8 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
 
         filters.is_initialized = true;
+        old_filter_spread_linear = filter_spread_linear;
+
         for (auto& stage : filters.stages) {
             for (size_t channel = 0; channel < input_channels; channel++) {
                 // TODO: We should add a dry-wet control, could be useful for
