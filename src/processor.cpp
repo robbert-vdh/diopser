@@ -277,28 +277,45 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                         current_filter_resonance);
             }
 
+            // The filter spread will be logarithmic because that sounds a bit
+            // more natural. We also need to make sure the spread range stays in
+            // the normal ranges to prevent the filters from crapping out. This
+            // does cause the range to shift slightly with high spread values
+            // and low or high frequency values. Ideally we would want to
+            // prevent this in the GUI.
+            // TODO: When adding a GUI, prevent spread values that would cause
+            //       the frequency range to be shifted
+            const float below_nyquist_frequency =
+                static_cast<float>(getSampleRate()) / 2.1f;
+            const float min_filter_frequency_log = std::log(std::clamp(
+                current_filter_frequency - (current_filter_spread / 2.0f), 5.0f,
+                below_nyquist_frequency));
+            const float max_filter_frequency_log = std::log(std::clamp(
+                current_filter_frequency + (current_filter_spread / 2.0f), 5.0f,
+                below_nyquist_frequency));
+            const float log_filter_frequency_delta =
+                max_filter_frequency_log - min_filter_frequency_log;
+
             const size_t num_stages = filters.stages.size();
             for (size_t stage_idx = 0; stage_idx < num_stages; stage_idx++) {
                 auto& stage = filters.stages[stage_idx];
 
                 if (!use_single_set_of_coefficients) {
-                    // TODO: As mentioned in the `filter_spread` docstring,
-                    //       decide on logarithmic vs linear spread
-                    const float frequency_offset =
-                        num_stages == 1
-                            ? 0.0f
-                            : ((static_cast<float>(stage_idx) /
-                                static_cast<float>(num_stages - 1)) -
-                               0.5f) *
-                                  current_filter_spread;
+                    // TODO: Maybe add back the option for simple linear
+                    //       skewing. Or use the same skew scheme JUCE's
+                    //       parameter range uses and make the skew factor
+                    //       configurable.
+                    const float frequency_offset_factor =
+                        num_stages == 1 ? 0.5f
+                                        : (static_cast<float>(stage_idx) /
+                                           static_cast<float>(num_stages - 1));
 
                     *stage.coefficients =
                         juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
                             getSampleRate(),
-                            std::clamp(
-                                current_filter_frequency + frequency_offset,
-                                5.0f,
-                                static_cast<float>(getSampleRate()) / 2.1f),
+                            std::exp(min_filter_frequency_log +
+                                     (log_filter_frequency_delta *
+                                      frequency_offset_factor)),
                             current_filter_resonance);
                 }
 

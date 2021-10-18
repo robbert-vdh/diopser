@@ -129,9 +129,6 @@ class DiopserProcessor : public juce::AudioProcessor {
      * same coefficients are used for every filter. Otherwise, the used
      * frequencies are distributed within the range `[-(filter_spread / 2),
      * (filter_spread / 2)]`.
-     *
-     * TODO: What sounds better/more natural, a logarithmic or linear
-     *       distribution?
      */
     std::atomic<float>& filter_spread;
     juce::SmoothedValue<float> smoothed_filter_spread;
