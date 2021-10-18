@@ -27,10 +27,7 @@ endif()
 # whether the package is available locally with pkgconfig before trying to
 # download and build it ourselves.
 include(cmake/CPM.cmake)
-# JUCE 6.1.2 wouldn't build on macOS, and this commit is supposed to fix the
-# build:
-# https://github.com/juce-framework/JUCE/issues/954
-CPMAddPackage("gh:juce-framework/JUCE#832bbed8c367b2d4cf782004c6b0d042e8da87a7")
+CPMAddPackage("gh:juce-framework/JUCE#6.1.2")
 
 find_package(PkgConfig)
 if(PkgConfig_FOUND)
