@@ -58,7 +58,39 @@ class DiopserProcessor : public juce::AudioProcessor {
     void setStateInformation(const void* data, int sizeInBytes) override;
 
    private:
-    using Filters = std::vector<std::vector<juce::dsp::IIR::Filter<float>>>;
+    struct FilterStage {
+        /**
+         * The type of the IIR coefficient array used, because these
+         * `CoefficientPtr`s are completely opaque.
+         */
+        using Coefficients = std::array<float, 6>;
+
+        std::vector<juce::dsp::IIR::Filter<float>> channels;
+        /**
+         * The all-pass coefficients for this stage's filters. As explained
+         * below, all filters will actually use the first stage's filter's
+         * coefficients when the spread has been turned down as an optimization.
+         * When adding filter stages in `update_and_swap_filters()`, this should
+         * be initialized with some arbitrary `Coefficients` so it can then be
+         * reinitialized with the correct coefficients in `processBlock()`.
+         */
+        juce::dsp::IIR::Filter<float>::CoefficientsPtr coefficients = nullptr;
+    };
+
+    /**
+     * This contains an arbitrary number of filter stages, which each contains
+     * some filter coefficients as well as an IIR filter for each channel.
+     */
+    struct Filters {
+        /**
+         * This should be set to `false` when changing the number of filter
+         * stages. Then we can initialize the filters during the first
+         * processing cycle.
+         */
+        bool is_initialized = false;
+
+        std::vector<FilterStage> stages;
+    };
 
     /**
      * Reinitialize `filters` with `filter_stages` filters on the next audio
@@ -75,18 +107,15 @@ class DiopserProcessor : public juce::AudioProcessor {
     juce::dsp::ProcessSpec current_spec;
 
     /**
-     * Our all-pass filters. The vector is indexed by
-     * `[filter_idx][channel_idx]`. The number of filters and the frequency of
-     * the filters is controlled using the `filter_stages` and
-     * `filter_frequency` parameters.
+     * Our all-pass filters. This is essentially a vector of filters indexed by
+     * `[filter_idx][channel_idx]` along coefficients per filter. The number of
+     * filters and the frequency of the filters is controlled using the
+     * `filter_stages` and `filter_frequency` parameters. Filter coefficients
+     * are stored along with the filter, but if `filter_spread` is disabled then
+     * all filters will use the first filter's coefficients for better cache
+     * locality.
      */
     AtomicallySwappable<Filters> filters;
-    /**
-     * All filters will use these same filter coefficients, so we can just
-     * update the coefficients for all filters in one place. This especially
-     * makes automation a lot more cache friendly.
-     */
-    juce::dsp::IIR::Filter<float>::CoefficientsPtr filter_coefficients;
 
     juce::AudioProcessorValueTreeState parameters;
 
