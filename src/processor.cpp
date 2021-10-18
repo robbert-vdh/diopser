@@ -18,6 +18,9 @@
 
 #include "editor.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+
 using juce::uint32;
 
 constexpr char filter_settings_group_name[] = "filters";
@@ -424,3 +427,5 @@ void DiopserProcessor::update_and_swap_filters() {
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new DiopserProcessor();
 }
+
+#pragma GCC diagnostic pop

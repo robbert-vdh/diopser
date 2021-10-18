@@ -16,6 +16,9 @@
 
 #include "utils.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+
 LambdaAsyncUpdater::LambdaAsyncUpdater(fu2::unique_function<void()> callback)
     : callback(std::move(callback)) {}
 
@@ -31,3 +34,5 @@ void LambdaParameterListener::parameterChanged(const juce::String& parameterID,
                                                float newValue) {
     callback(parameterID, newValue);
 }
+
+#pragma GCC diagnostic pop
