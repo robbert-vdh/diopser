@@ -24,13 +24,14 @@ constexpr char filter_settings_group_name[] = "filters";
 constexpr char filter_stages_param_name[] = "filter_stages";
 constexpr char filter_frequency_param_name[] = "filter_freq";
 constexpr char filter_resonance_param_name[] = "filter_res";
+constexpr char filter_spread_param_name[] = "filter_spread";
 
 /**
  * When the filter cutoff or resonance parameters change, we'll interpolate
  * between the old and the new values over the course of this time span to
  * prevent clicks.
  */
-constexpr float filter_smoothing_secs = 0.1;
+constexpr float filter_smoothing_secs = 0.1f;
 
 /**
  * The default filter resonance. This value should minimize the amount of
@@ -39,7 +40,7 @@ constexpr float filter_smoothing_secs = 0.1;
  * The actual default neutral Q-value would be `sqrt(2) / 2`, but this value
  * produces slightly less ringing.
  */
-constexpr float default_filter_resonance = 0.5;
+constexpr float default_filter_resonance = 0.5f;
 
 DiopserProcessor::DiopserProcessor()
     : AudioProcessor(
@@ -65,17 +66,19 @@ DiopserProcessor::DiopserProcessor()
                       0,
                       512,
                       0),
-                  // TODO: This frequency is slightly off form disperser. Check
-                  //       which one is correct with respect to resonance
-                  //       frequency.
+                  // For some reason Disperser's frequency is a bit off, but
+                  // ours is actually correct with respect to 440 Hz = A tuning.
                   // TODO: Figure out some way to get rid of the resonances when
                   //       sweep the frequency down when using a large number of
                   //       stages
                   std::make_unique<juce::AudioParameterFloat>(
                       filter_frequency_param_name,
                       "Filter Frequency",
-                      juce::NormalisableRange<float>(5.0, 20000.0, 1.0, 0.2),
-                      200.0,
+                      juce::NormalisableRange<float>(5.0f,
+                                                     20000.0f,
+                                                     1.0f,
+                                                     0.2f),
+                      200.0f,
                       " Hz",
                       juce::AudioProcessorParameter::genericParameter,
                       [](float value, int /*max_length*/) -> juce::String {
@@ -85,8 +88,19 @@ DiopserProcessor::DiopserProcessor()
                   std::make_unique<juce::AudioParameterFloat>(
                       filter_resonance_param_name,
                       "Filter Resonance",
-                      juce::NormalisableRange<float>(0.01, 30.0, 0.01, 0.2),
-                      default_filter_resonance)),
+                      juce::NormalisableRange<float>(0.01f, 30.0f, 0.01f, 0.2f),
+                      default_filter_resonance),
+                  std::make_unique<juce::AudioParameterFloat>(
+                      filter_spread_param_name,
+                      "Filter spread",
+                      juce::NormalisableRange<
+                          float>(-5000.0f, 5000.0f, 1.0f, 0.3f, true),
+                      0.0f,
+                      " Hz",
+                      juce::AudioProcessorParameter::genericParameter,
+                      [](float value, int /*max_length*/) -> juce::String {
+                          return juce::String(value, 0);
+                      })),
               std::make_unique<juce::AudioParameterBool>(
                   "please_ignore",
                   "Don't touch this",
@@ -104,6 +118,7 @@ DiopserProcessor::DiopserProcessor()
           *parameters.getRawParameterValue(filter_frequency_param_name)),
       filter_resonance(
           *parameters.getRawParameterValue(filter_resonance_param_name)),
+      filter_spread(*parameters.getRawParameterValue(filter_spread_param_name)),
       filter_stages_updater([&]() { update_and_swap_filters(); }),
       filter_stages_listener(
           [&](const juce::String& /*parameter_id*/, float /*new_value*/) {
@@ -185,6 +200,7 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     // The filter parameter will be smoothed to prevent clicks during automation
     smoothed_filter_frequency.reset(sampleRate, filter_smoothing_secs);
     smoothed_filter_resonance.reset(sampleRate, filter_smoothing_secs);
+    smoothed_filter_spread.reset(sampleRate, filter_smoothing_secs);
 }
 
 void DiopserProcessor::releaseResources() {
@@ -235,24 +251,60 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     smoothed_filter_frequency.setTargetValue(filter_frequency);
     smoothed_filter_resonance.setTargetValue(filter_resonance);
+    smoothed_filter_spread.setTargetValue(filter_spread);
     for (size_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
         const bool should_update_filters =
             !filters.is_initialized ||
             smoothed_filter_frequency.isSmoothing() ||
-            smoothed_filter_resonance.isSmoothing();
+            smoothed_filter_resonance.isSmoothing() ||
+            smoothed_filter_spread.isSmoothing();
         const float current_filter_frequency =
             smoothed_filter_frequency.getNextValue();
         const float current_filter_resonance =
             smoothed_filter_resonance.getNextValue();
+        const float current_filter_spread =
+            smoothed_filter_spread.getNextValue();
+
         if (should_update_filters && !filters.stages.empty()) {
             // We can use a single set of coefficients as a cache locality
-            *filters.stages[0].coefficients =
-                juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
-                    getSampleRate(), current_filter_frequency,
-                    current_filter_resonance);
+            // optimization if spread has been disabled
+            const bool use_single_set_of_coefficients =
+                current_filter_spread == 0.0f;
+            if (use_single_set_of_coefficients) {
+                *filters.stages[0].coefficients =
+                    juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
+                        getSampleRate(), current_filter_frequency,
+                        current_filter_resonance);
+            }
 
-            for (auto& stage : filters.stages) {
-                const auto& coefficients = filters.stages[0].coefficients;
+            const size_t num_stages = filters.stages.size();
+            for (size_t stage_idx = 0; stage_idx < num_stages; stage_idx++) {
+                auto& stage = filters.stages[stage_idx];
+
+                if (!use_single_set_of_coefficients) {
+                    // TODO: As mentioned in the `filter_spread` docstring,
+                    //       decide on logarithmic vs linear spread
+                    const float frequency_offset =
+                        num_stages == 1
+                            ? 0.0f
+                            : ((static_cast<float>(stage_idx) /
+                                static_cast<float>(num_stages - 1)) -
+                               0.5f) *
+                                  current_filter_spread;
+
+                    *stage.coefficients =
+                        juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
+                            getSampleRate(),
+                            std::clamp(
+                                current_filter_frequency + frequency_offset,
+                                5.0f,
+                                static_cast<float>(getSampleRate()) / 2.1f),
+                            current_filter_resonance);
+                }
+
+                const auto& coefficients = use_single_set_of_coefficients
+                                               ? filters.stages[0].coefficients
+                                               : stage.coefficients;
                 for (auto& filter : stage.channels) {
                     filter.coefficients = coefficients;
                 }
@@ -264,6 +316,8 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             for (size_t channel = 0; channel < input_channels; channel++) {
                 // TODO: We should add a dry-wet control, could be useful for
                 //       automation
+                // TODO: Oh and we should _definitely_ have some kind of 'safe
+                //       mode' limiter enabled by default
                 samples[channel][sample_idx] =
                     stage.channels[channel].processSample(
                         samples[channel][sample_idx]);

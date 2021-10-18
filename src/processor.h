@@ -121,9 +121,20 @@ class DiopserProcessor : public juce::AudioProcessor {
 
     juce::AudioParameterInt& filter_stages;
     std::atomic<float>& filter_frequency;
-    std::atomic<float>& filter_resonance;
     juce::SmoothedValue<float> smoothed_filter_frequency;
+    std::atomic<float>& filter_resonance;
     juce::SmoothedValue<float> smoothed_filter_resonance;
+    /**
+     * A cutoff spread between the filter stages. When this value is `0`, the
+     * same coefficients are used for every filter. Otherwise, the used
+     * frequencies are distributed within the range `[-(filter_spread / 2),
+     * (filter_spread / 2)]`.
+     *
+     * TODO: What sounds better/more natural, a logarithmic or linear
+     *       distribution?
+     */
+    std::atomic<float>& filter_spread;
+    juce::SmoothedValue<float> smoothed_filter_spread;
 
     /**
      * Will add or remove filters when the number of filter stages changes.
