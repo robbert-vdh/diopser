@@ -76,7 +76,10 @@ target_compile_definitions(Diopser PUBLIC
   JUCE_USE_CURL=0
   JUCE_VST3_CAN_REPLACE_VST2=0
   # We're licensed under the GPL
-  JUCE_DISPLAY_SPLASH_SCREEN=0)
+  JUCE_DISPLAY_SPLASH_SCREEN=0
+  # At least for now don't steal keyboard focus because it's annoying. This
+  # doesn't seem to actually work however.
+  JUCE_EDITOR_WANTS_KEYBOARD_FOCUS=0)
 
 target_compile_features(Diopser PUBLIC cxx_std_20)
 set_target_properties(Diopser PROPERTIES CXX_EXTENSIONS OFF)
