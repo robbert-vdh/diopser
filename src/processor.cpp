@@ -132,8 +132,8 @@ DiopserProcessor::DiopserProcessor()
                       // that the most precise value will be on the left of the
                       // range, but that's life. This all looks a bit weird
                       // because our lowest integer value is 1.
-                      return juce::String(((512 - value) / 511.0f * 100.0f),
-                                          0) +
+                      return juce::String(
+                                 std::round((512 - value) / 511.0f * 100.0f)) +
                              "%";
                   },
                   [](const juce::String& text) -> int {
