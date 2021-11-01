@@ -31,6 +31,13 @@ constexpr char filter_spread_param_name[] = "filter_spread";
 constexpr char filter_spread_linear_param_name[] = "filter_spread_linear";
 
 /**
+ * The interval in samples between parameter smoothing cycles. Recomputing
+ * `filter_stages` IIR coefficients every sample while smoothing gets a bit
+ * expensive.
+ */
+constexpr int smoothing_interval = 32;
+
+/**
  * When the filter cutoff or resonance parameters change, we'll interpolate
  * between the old and the new values over the course of this time span to
  * prevent clicks.
@@ -216,9 +223,13 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     filters.get();
 
     // The filter parameter will be smoothed to prevent clicks during automation
-    smoothed_filter_frequency.reset(sampleRate, filter_smoothing_secs);
-    smoothed_filter_resonance.reset(sampleRate, filter_smoothing_secs);
-    smoothed_filter_spread.reset(sampleRate, filter_smoothing_secs);
+    const double compensated_sample_rate = sampleRate / smoothing_interval;
+    smoothed_filter_frequency.reset(compensated_sample_rate,
+                                    filter_smoothing_secs);
+    smoothed_filter_resonance.reset(compensated_sample_rate,
+                                    filter_smoothing_secs);
+    smoothed_filter_spread.reset(compensated_sample_rate,
+                                 filter_smoothing_secs);
 }
 
 void DiopserProcessor::releaseResources() {
@@ -271,18 +282,30 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     smoothed_filter_resonance.setTargetValue(filter_resonance);
     smoothed_filter_spread.setTargetValue(filter_spread);
     for (size_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
+        // Recomputing these IIR coefficients every sample is expensive, so to
+        // save some cycles we only do it once every `smoothing_interval`
+        // samples unless the filters just got reinitialized or some parameter
+        // we can't smooth has
+        const bool should_apply_smoothing =
+            next_smooth_in <= 0 && (smoothed_filter_frequency.isSmoothing() ||
+                                    smoothed_filter_resonance.isSmoothing() ||
+                                    smoothed_filter_spread.isSmoothing());
         const bool should_update_filters =
             !filters.is_initialized ||
-            smoothed_filter_frequency.isSmoothing() ||
-            smoothed_filter_resonance.isSmoothing() ||
-            smoothed_filter_spread.isSmoothing() ||
-            (filter_spread_linear != old_filter_spread_linear);
+            filter_spread_linear != old_filter_spread_linear ||
+            should_apply_smoothing;
+
         const float current_filter_frequency =
-            smoothed_filter_frequency.getNextValue();
+            should_apply_smoothing
+                ? smoothed_filter_frequency.getNextValue()
+                : smoothed_filter_frequency.getCurrentValue();
         const float current_filter_resonance =
-            smoothed_filter_resonance.getNextValue();
+            should_apply_smoothing
+                ? smoothed_filter_resonance.getNextValue()
+                : smoothed_filter_resonance.getCurrentValue();
         const float current_filter_spread =
-            smoothed_filter_spread.getNextValue();
+            should_apply_smoothing ? smoothed_filter_spread.getNextValue()
+                                   : smoothed_filter_spread.getCurrentValue();
 
         if (should_update_filters && !filters.stages.empty()) {
             // We can use a single set of coefficients as a cache locality
@@ -356,8 +379,11 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     filter.coefficients = coefficients;
                 }
             }
+
+            next_smooth_in = smoothing_interval;
         }
 
+        next_smooth_in -= 1;
         filters.is_initialized = true;
         old_filter_spread_linear = filter_spread_linear;
 

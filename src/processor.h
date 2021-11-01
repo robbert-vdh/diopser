@@ -119,6 +119,16 @@ class DiopserProcessor : public juce::AudioProcessor {
 
     juce::AudioProcessorValueTreeState parameters;
 
+    /**
+     * How many samples we should process before updating and smoothing the
+     * parameters again. We do this only once every `smoothing_interval` samples
+     * because recomputing all of these filter coefficients per-sample becomes
+     * pretty expensive.
+     *
+     * To keep things simple, this value can be negative.
+     */
+    int next_smooth_in = 0;
+
     juce::AudioParameterInt& filter_stages;
     std::atomic<float>& filter_frequency;
     juce::SmoothedValue<float> smoothed_filter_frequency;
