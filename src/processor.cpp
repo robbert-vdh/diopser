@@ -439,6 +439,15 @@ void DiopserProcessor::setStateInformation(const void* data, int sizeInBytes) {
     const auto xml = getXmlFromBinary(data, sizeInBytes);
     if (xml && xml->hasTagName(parameters.state.getType())) {
         parameters.replaceState(juce::ValueTree::fromXml(*xml));
+
+        // When loading patches from before we added the smoothing interval we
+        // should default that to 1 instead of the normal default in case the
+        // parameter was being automated
+        for (const auto* child : xml->getChildWithTagNameIterator("PARAM")) {
+            if (!child->compareAttribute("id", smoothing_interval_param_name)) {
+                smoothing_interval = 1;
+            }
+        }
     }
 }
 
