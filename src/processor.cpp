@@ -124,7 +124,7 @@ DiopserProcessor::DiopserProcessor()
                   1,
                   512,
                   128,
-                  "",
+                  "%",
                   [](int value, int /*max_length*/) -> juce::String {
                       // Since the exact values don't matter, we'll display this
                       // as a percentage with 100% being the most precision (1
@@ -133,8 +133,7 @@ DiopserProcessor::DiopserProcessor()
                       // range, but that's life. This all looks a bit weird
                       // because our lowest integer value is 1.
                       return juce::String(
-                                 std::round((512 - value) / 511.0f * 100.0f)) +
-                             "%";
+                          std::round((512 - value) / 511.0f * 100.0f));
                   },
                   [](const juce::String& text) -> int {
                       const float percentage = text.getFloatValue();
