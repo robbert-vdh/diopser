@@ -29,13 +29,7 @@ constexpr char filter_frequency_param_name[] = "filter_freq";
 constexpr char filter_resonance_param_name[] = "filter_res";
 constexpr char filter_spread_param_name[] = "filter_spread";
 constexpr char filter_spread_linear_param_name[] = "filter_spread_linear";
-
-/**
- * The interval in samples between parameter smoothing cycles. Recomputing
- * `filter_stages` IIR coefficients every sample while smoothing gets a bit
- * expensive.
- */
-constexpr int smoothing_interval = 32;
+constexpr char smoothing_interval_param_name[] = "smoothing_interval";
 
 /**
  * When the filter cutoff or resonance parameters change, we'll interpolate
@@ -124,6 +118,28 @@ DiopserProcessor::DiopserProcessor()
                           const auto& lower_case = text.toLowerCase();
                           return lower_case == "linear" || lower_case == "true";
                       })),
+              std::make_unique<juce::AudioParameterInt>(
+                  smoothing_interval_param_name,
+                  "Automation precision",
+                  1,
+                  512,
+                  128,
+                  "",
+                  [](int value, int /*max_length*/) -> juce::String {
+                      // Since the exact values don't matter, we'll display this
+                      // as a percentage with 100% being the most precision (1
+                      // sample), and 0% being the least precise. This does mean
+                      // that the most precise value will be on the left of the
+                      // range, but that's life. This all looks a bit weird
+                      // because our lowest integer value is 1.
+                      return juce::String(((512 - value) / 511.0f * 100.0f),
+                                          0) +
+                             "%";
+                  },
+                  [](const juce::String& text) -> int {
+                      const float percentage = text.getFloatValue();
+                      return std::round(512 - ((percentage / 100.0f) * 511.0f));
+                  }),
               std::make_unique<juce::AudioParameterBool>(
                   "please_ignore",
                   "Don't touch this",
@@ -144,6 +160,8 @@ DiopserProcessor::DiopserProcessor()
       filter_spread(*parameters.getRawParameterValue(filter_spread_param_name)),
       filter_spread_linear(*dynamic_cast<juce::AudioParameterBool*>(
           parameters.getParameter(filter_spread_linear_param_name))),
+      smoothing_interval(*dynamic_cast<juce::AudioParameterInt*>(
+          parameters.getParameter(smoothing_interval_param_name))),
       filter_stages_updater([&]() { update_and_swap_filters(); }),
       filter_stages_listener(
           [&](const juce::String& /*parameter_id*/, float /*new_value*/) {

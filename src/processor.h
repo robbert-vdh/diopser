@@ -150,6 +150,13 @@ class DiopserProcessor : public juce::AudioProcessor {
     bool old_filter_spread_linear;
 
     /**
+     * The interval in samples between parameter smoothing cycles. Recomputing
+     * `filter_stages` IIR coefficients every sample while smoothing gets a bit
+     * expensive.
+     */
+    juce::AudioParameterInt& smoothing_interval;
+
+    /**
      * Will add or remove filters when the number of filter stages changes.
      */
     LambdaAsyncUpdater filter_stages_updater;
