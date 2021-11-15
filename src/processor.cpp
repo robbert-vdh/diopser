@@ -442,10 +442,16 @@ void DiopserProcessor::setStateInformation(const void* data, int sizeInBytes) {
         // When loading patches from before we added the smoothing interval we
         // should default that to 1 instead of the normal default in case the
         // parameter was being automated
+        bool has_smoothing_interval = false;
         for (const auto* child : xml->getChildWithTagNameIterator("PARAM")) {
-            if (!child->compareAttribute("id", smoothing_interval_param_name)) {
-                smoothing_interval = 1;
+            if (child->compareAttribute("id", smoothing_interval_param_name)) {
+                has_smoothing_interval = true;
+                break;
             }
+        }
+
+        if (!has_smoothing_interval) {
+            smoothing_interval = 1;
         }
     }
 }
