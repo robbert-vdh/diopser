@@ -27,7 +27,7 @@ class DiopserEditor : public juce::AudioProcessorEditor {
     void resized() override;
 
    private:
-    DiopserProcessor& processor;
+    DiopserProcessor& processor_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DiopserEditor)
 };

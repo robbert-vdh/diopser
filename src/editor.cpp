@@ -18,15 +18,13 @@
 
 #include "processor.h"
 
-DiopserEditor::DiopserEditor(
-    DiopserProcessor& p)
-    : AudioProcessorEditor(&p), processor(p) {
+DiopserEditor::DiopserEditor(DiopserProcessor& p)
+    : AudioProcessorEditor(&p), processor_(p) {
     setSize(400, 300);
 }
 
 DiopserEditor::~DiopserEditor() {}
 
-//==============================================================================
 void DiopserEditor::paint(juce::Graphics& g) {
     // TODO: Replace with something else. Or drop the GUI.
     g.fillAll(

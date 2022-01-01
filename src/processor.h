@@ -104,7 +104,7 @@ class DiopserProcessor : public juce::AudioProcessor {
      * The current processing spec. Needed when adding more filters when the
      * number of stages changes.
      */
-    juce::dsp::ProcessSpec current_spec;
+    juce::dsp::ProcessSpec current_spec_;
 
     /**
      * Our all-pass filters. This is essentially a vector of filters indexed by
@@ -115,9 +115,9 @@ class DiopserProcessor : public juce::AudioProcessor {
      * all filters will use the first filter's coefficients for better cache
      * locality.
      */
-    AtomicallySwappable<Filters> filters;
+    AtomicallySwappable<Filters> filters_;
 
-    juce::AudioProcessorValueTreeState parameters;
+    juce::AudioProcessorValueTreeState parameters_;
 
     /**
      * How many samples we should process before updating and smoothing the
@@ -127,40 +127,40 @@ class DiopserProcessor : public juce::AudioProcessor {
      *
      * To keep things simple, this value can be negative.
      */
-    int next_smooth_in = 0;
+    int next_smooth_in_ = 0;
 
-    juce::AudioParameterInt& filter_stages;
-    std::atomic<float>& filter_frequency;
-    juce::SmoothedValue<float> smoothed_filter_frequency;
-    std::atomic<float>& filter_resonance;
-    juce::SmoothedValue<float> smoothed_filter_resonance;
+    juce::AudioParameterInt& filter_stages_;
+    std::atomic<float>& filter_frequency_;
+    juce::SmoothedValue<float> smoothed_filter_frequency_;
+    std::atomic<float>& filter_resonance_;
+    juce::SmoothedValue<float> smoothed_filter_resonance_;
     /**
      * A cutoff spread between the filter stages. When this value is `0`, the
      * same coefficients are used for every filter. Otherwise, the used
      * frequencies are distributed within the range `[-(filter_spread / 2),
      * (filter_spread / 2)]`.
      */
-    std::atomic<float>& filter_spread;
-    juce::SmoothedValue<float> smoothed_filter_spread;
+    std::atomic<float>& filter_spread_;
+    juce::SmoothedValue<float> smoothed_filter_spread_;
     /**
      * The spread can either be logarithmic or linear. The logarithmic version
      * usually sounds more natural, but surely more options is better, right?
      */
-    juce::AudioParameterBool& filter_spread_linear;
-    bool old_filter_spread_linear;
+    juce::AudioParameterBool& filter_spread_linear_;
+    bool old_filter_spread_linear_;
 
     /**
      * The interval in samples between parameter smoothing cycles. Recomputing
      * `filter_stages` IIR coefficients every sample while smoothing gets a bit
      * expensive.
      */
-    juce::AudioParameterInt& smoothing_interval;
+    juce::AudioParameterInt& smoothing_interval_;
 
     /**
      * Will add or remove filters when the number of filter stages changes.
      */
-    LambdaAsyncUpdater filter_stages_updater;
-    LambdaParameterListener filter_stages_listener;
+    LambdaAsyncUpdater filter_stages_updater_;
+    LambdaParameterListener filter_stages_listener_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DiopserProcessor)
 };

@@ -18,9 +18,6 @@
 
 #include "editor.h"
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-
 using juce::uint32;
 
 constexpr char filter_settings_group_name[] = "filters";
@@ -52,7 +49,7 @@ DiopserProcessor::DiopserProcessor()
           BusesProperties()
               .withInput("Input", juce::AudioChannelSet::stereo(), true)
               .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      parameters(
+      parameters_(
           *this,
           nullptr,
           "parameters",
@@ -150,25 +147,26 @@ DiopserProcessor::DiopserProcessor()
           }),
       // TODO: Is this how you're supposed to retrieve non-float parameters?
       //       Seems a bit excessive
-      filter_stages(*dynamic_cast<juce::AudioParameterInt*>(
-          parameters.getParameter(filter_stages_param_name))),
-      filter_frequency(
-          *parameters.getRawParameterValue(filter_frequency_param_name)),
-      filter_resonance(
-          *parameters.getRawParameterValue(filter_resonance_param_name)),
-      filter_spread(*parameters.getRawParameterValue(filter_spread_param_name)),
-      filter_spread_linear(*dynamic_cast<juce::AudioParameterBool*>(
-          parameters.getParameter(filter_spread_linear_param_name))),
-      smoothing_interval(*dynamic_cast<juce::AudioParameterInt*>(
-          parameters.getParameter(smoothing_interval_param_name))),
-      filter_stages_updater([&]() { update_and_swap_filters(); }),
-      filter_stages_listener(
+      filter_stages_(*dynamic_cast<juce::AudioParameterInt*>(
+          parameters_.getParameter(filter_stages_param_name))),
+      filter_frequency_(
+          *parameters_.getRawParameterValue(filter_frequency_param_name)),
+      filter_resonance_(
+          *parameters_.getRawParameterValue(filter_resonance_param_name)),
+      filter_spread_(
+          *parameters_.getRawParameterValue(filter_spread_param_name)),
+      filter_spread_linear_(*dynamic_cast<juce::AudioParameterBool*>(
+          parameters_.getParameter(filter_spread_linear_param_name))),
+      smoothing_interval_(*dynamic_cast<juce::AudioParameterInt*>(
+          parameters_.getParameter(smoothing_interval_param_name))),
+      filter_stages_updater_([&]() { update_and_swap_filters(); }),
+      filter_stages_listener_(
           [&](const juce::String& /*parameter_id*/, float /*new_value*/) {
               // Resize our filter vector from a background thread
-              filter_stages_updater.triggerAsyncUpdate();
+              filter_stages_updater_.triggerAsyncUpdate();
           }) {
-    parameters.addParameterListener(filter_stages_param_name,
-                                    &filter_stages_listener);
+    parameters_.addParameterListener(filter_stages_param_name,
+                                     &filter_stages_listener_);
 }
 
 DiopserProcessor::~DiopserProcessor() {}
@@ -226,7 +224,7 @@ void DiopserProcessor::changeProgramName(int /*index*/,
 
 void DiopserProcessor::prepareToPlay(double sampleRate,
                                      int maximumExpectedSamplesPerBlock) {
-    current_spec = juce::dsp::ProcessSpec{
+    current_spec_ = juce::dsp::ProcessSpec{
         .sampleRate = sampleRate,
         .maximumBlockSize = static_cast<uint32>(maximumExpectedSamplesPerBlock),
         .numChannels = static_cast<uint32>(getMainBusNumInputChannels())};
@@ -237,20 +235,20 @@ void DiopserProcessor::prepareToPlay(double sampleRate,
     // `is_initialized` flag to `false`, so the filter coefficients will be
     // initialized during the first processing cycle.
     update_and_swap_filters();
-    filters.get();
+    filters_.get();
 
     // The filter parameter will be smoothed to prevent clicks during automation
-    const double compensated_sample_rate = sampleRate / smoothing_interval;
-    smoothed_filter_frequency.reset(compensated_sample_rate,
-                                    filter_smoothing_secs);
-    smoothed_filter_resonance.reset(compensated_sample_rate,
-                                    filter_smoothing_secs);
-    smoothed_filter_spread.reset(compensated_sample_rate,
-                                 filter_smoothing_secs);
+    const double compensated_sample_rate = sampleRate / smoothing_interval_;
+    smoothed_filter_frequency_.reset(compensated_sample_rate,
+                                     filter_smoothing_secs);
+    smoothed_filter_resonance_.reset(compensated_sample_rate,
+                                     filter_smoothing_secs);
+    smoothed_filter_spread_.reset(compensated_sample_rate,
+                                  filter_smoothing_secs);
 }
 
 void DiopserProcessor::releaseResources() {
-    filters.clear([](Filters& filters) {
+    filters_.clear([](Filters& filters) {
         filters.stages.clear();
         filters.stages.shrink_to_fit();
     });
@@ -293,36 +291,36 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
     // Our filter structure gets updated from a background thread whenever the
     // `filter_stages` parameter changes
-    Filters& filters = this->filters.get();
+    Filters& filters = filters_.get();
 
-    smoothed_filter_frequency.setTargetValue(filter_frequency);
-    smoothed_filter_resonance.setTargetValue(filter_resonance);
-    smoothed_filter_spread.setTargetValue(filter_spread);
+    smoothed_filter_frequency_.setTargetValue(filter_frequency_);
+    smoothed_filter_resonance_.setTargetValue(filter_resonance_);
+    smoothed_filter_spread_.setTargetValue(filter_spread_);
     for (size_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
         // Recomputing these IIR coefficients every sample is expensive, so to
         // save some cycles we only do it once every `smoothing_interval`
         // samples unless the filters just got reinitialized or some parameter
         // we can't smooth has
         const bool should_apply_smoothing =
-            next_smooth_in <= 0 && (smoothed_filter_frequency.isSmoothing() ||
-                                    smoothed_filter_resonance.isSmoothing() ||
-                                    smoothed_filter_spread.isSmoothing());
+            next_smooth_in_ <= 0 && (smoothed_filter_frequency_.isSmoothing() ||
+                                     smoothed_filter_resonance_.isSmoothing() ||
+                                     smoothed_filter_spread_.isSmoothing());
         const bool should_update_filters =
             !filters.is_initialized ||
-            filter_spread_linear != old_filter_spread_linear ||
+            filter_spread_linear_ != old_filter_spread_linear_ ||
             should_apply_smoothing;
 
         const float current_filter_frequency =
             should_apply_smoothing
-                ? smoothed_filter_frequency.getNextValue()
-                : smoothed_filter_frequency.getCurrentValue();
+                ? smoothed_filter_frequency_.getNextValue()
+                : smoothed_filter_frequency_.getCurrentValue();
         const float current_filter_resonance =
             should_apply_smoothing
-                ? smoothed_filter_resonance.getNextValue()
-                : smoothed_filter_resonance.getCurrentValue();
+                ? smoothed_filter_resonance_.getNextValue()
+                : smoothed_filter_resonance_.getCurrentValue();
         const float current_filter_spread =
-            should_apply_smoothing ? smoothed_filter_spread.getNextValue()
-                                   : smoothed_filter_spread.getCurrentValue();
+            should_apply_smoothing ? smoothed_filter_spread_.getNextValue()
+                                   : smoothed_filter_spread_.getCurrentValue();
 
         if (should_update_filters && !filters.stages.empty()) {
             // We can use a single set of coefficients as a cache locality
@@ -379,7 +377,7 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     *stage.coefficients =
                         juce::dsp::IIR::ArrayCoefficients<float>::makeAllPass(
                             getSampleRate(),
-                            filter_spread_linear
+                            filter_spread_linear_
                                 ? (min_filter_frequency +
                                    (filter_frequency_delta *
                                     frequency_offset_factor))
@@ -397,12 +395,12 @@ void DiopserProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 }
             }
 
-            next_smooth_in = smoothing_interval;
+            next_smooth_in_ = smoothing_interval_;
         }
 
-        next_smooth_in -= 1;
+        next_smooth_in_ -= 1;
         filters.is_initialized = true;
-        old_filter_spread_linear = filter_spread_linear;
+        old_filter_spread_linear_ = filter_spread_linear_;
 
         for (auto& stage : filters.stages) {
             for (size_t channel = 0; channel < input_channels; channel++) {
@@ -430,14 +428,14 @@ juce::AudioProcessorEditor* DiopserProcessor::createEditor() {
 
 void DiopserProcessor::getStateInformation(juce::MemoryBlock& destData) {
     const std::unique_ptr<juce::XmlElement> xml =
-        parameters.copyState().createXml();
+        parameters_.copyState().createXml();
     copyXmlToBinary(*xml, destData);
 }
 
 void DiopserProcessor::setStateInformation(const void* data, int sizeInBytes) {
     const auto xml = getXmlFromBinary(data, sizeInBytes);
-    if (xml && xml->hasTagName(parameters.state.getType())) {
-        parameters.replaceState(juce::ValueTree::fromXml(*xml));
+    if (xml && xml->hasTagName(parameters_.state.getType())) {
+        parameters_.replaceState(juce::ValueTree::fromXml(*xml));
 
         // When loading patches from before we added the smoothing interval we
         // should default that to 1 instead of the normal default in case the
@@ -451,15 +449,15 @@ void DiopserProcessor::setStateInformation(const void* data, int sizeInBytes) {
         }
 
         if (!has_smoothing_interval) {
-            smoothing_interval = 1;
+            smoothing_interval_ = 1;
         }
     }
 }
 
 void DiopserProcessor::update_and_swap_filters() {
-    filters.modify_and_swap([this](Filters& filters) {
+    filters_.modify_and_swap([this](Filters& filters) {
         filters.is_initialized = false;
-        filters.stages.resize(static_cast<size_t>(filter_stages));
+        filters.stages.resize(static_cast<size_t>(filter_stages_));
 
         for (auto& stage : filters.stages) {
             // The actual coefficients for each stage are initialized on the
@@ -474,7 +472,7 @@ void DiopserProcessor::update_and_swap_filters() {
             stage.channels.resize(
                 static_cast<size_t>(getMainBusNumOutputChannels()));
             for (auto& filter : stage.channels) {
-                filter.prepare(current_spec);
+                filter.prepare(current_spec_);
                 filter.coefficients = stage.coefficients;
                 filter.reset();
             }
@@ -485,5 +483,3 @@ void DiopserProcessor::update_and_swap_filters() {
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new DiopserProcessor();
 }
-
-#pragma GCC diagnostic pop
