@@ -51,7 +51,7 @@ endif()
 #
 
 juce_add_plugin(Diopser
-  PRODUCT_NAME "Diopser"
+  PRODUCT_NAME "Diopser (legacy)"
   COMPANY_NAME "Robbert van der Helm"
   FORMATS VST3 AU
 
