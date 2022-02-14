@@ -2,6 +2,10 @@
 
 [![Automated builds](https://github.com/robbert-vdh/diopser/workflows/Automated%20builds/badge.svg?branch=master&event=push)](https://github.com/robbert-vdh/diopser/actions?query=workflow%3A%22Automated+builds%22+branch%3Amaster)
 
+**Diopser is now part of [NIH-plug](https://github.com/robbert-vdh/nih-plug) and
+will receive additional features there.** **This version of the plugin will not
+be developed any more.**
+
 You were expecting Disperser[¹](#disperser), but it was me, Diopser!
 
 Diopser lets you rotate the phase of a signal around a specific frequency
